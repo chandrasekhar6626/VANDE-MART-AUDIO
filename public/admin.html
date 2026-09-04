@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vande Mart Audio Admin</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#17202a}
+header{background:#111827;color:white;padding:18px}
+main{max-width:900px;margin:auto;padding:16px}
+.card{background:white;padding:18px;margin:14px 0;border-radius:12px;box-shadow:0 2px 8px #0001}
+input,button{padding:11px;margin:5px 0;border-radius:8px;border:1px solid #ccd}
+button{cursor:pointer;background:#111827;color:white}
+.branch{display:inline-block;margin:5px;padding:8px;background:#eef2ff;border-radius:8px}
+.status{font-weight:bold}
+</style>
+</head>
+<body>
+<header><h2>Vande Mart Central Audio</h2></header>
+<main>
+<div class="card">
+<h3>Add Branch</h3>
+<input id="branchName" placeholder="Branch name">
+<input id="branchCode" placeholder="Unique code e.g. KURNOOL01">
+<button onclick="addBranch()">Add Branch</button>
+<div id="branches"></div>
+</div>
+
+<div class="card">
+<h3>Upload Announcement</h3>
+<input id="title" placeholder="Announcement title"><br>
+<input id="audio" type="file" accept="audio/*"><br>
+<label>Interval (minutes)</label><br>
+<input id="interval" type="number" value="15" min="1"><br>
+<label>Start time</label><br>
+<input id="start" type="time" value="09:00"><br>
+<label>End time</label><br>
+<input id="end" type="time" value="21:00"><br>
+<p>Select branches:</p>
+<div id="branchChecks"></div>
+<button onclick="uploadAnnouncement()">Upload</button>
+</div>
+
+<div class="card">
+<h3>Announcements</h3>
+<div id="announcements"></div>
+</div>
+</main>
+
+<script>
+let branches=[];
+async function load(){
+  branches=await fetch("/api/branches").then(r=>r.json());
+  document.getElementById("branches").innerHTML=branches.map(b=>`<div class="branch">${b.name} (${b.code})</div>`).join("");
+  document.getElementById("branchChecks").innerHTML=branches.map(b=>`<label class="branch"><input type="checkbox" value="${b.id}"> ${b.name}</label>`).join("");
+  const a=await fetch("/api/announcements").then(r=>r.json());
+  document.getElementById("announcements").innerHTML=a.map(x=>`
+    <div class="card">
+      <b>${x.title}</b><br>Every ${x.interval_minutes} minutes, ${x.start_time}-${x.end_time}<br>
+      Status: <span class="status">${x.active?"ACTIVE":"Stopped"}</span><br>
+      ${x.active?`<button onclick="stopA(${x.id})">Stop</button>`:`<button onclick="activate(${x.id})">Activate</button>`}
+    </div>`).join("");
+}
+async function addBranch(){
+  const name=branchName.value.trim(), code=branchCode.value.trim();
+  if(!name||!code)return alert("Enter branch name and code");
+  const r=await fetch("/api/branches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,code})});
+  if(!r.ok)return alert((await r.json()).error);
+  branchName.value="";branchCode.value="";load();
+}
+async function uploadAnnouncement(){
+  const file=audio.files[0]; if(!file)return alert("Choose an audio file");
+  const ids=[...document.querySelectorAll("#branchChecks input:checked")].map(x=>Number(x.value));
+  if(!ids.length)return alert("Select at least one branch");
+  const fd=new FormData();
+  fd.append("title",title.value||file.name);fd.append("audio",file);
+  fd.append("interval_minutes",interval.value);fd.append("start_time",start.value);fd.append("end_time",end.value);
+  fd.append("branch_ids",JSON.stringify(ids));
+  const r=await fetch("/api/announcements",{method:"POST",body:fd});
+  if(!r.ok)return alert((await r.json()).error);
+  alert("Announcement uploaded");load();
+}
+async function activate(id){await fetch("/api/announcements/"+id+"/activate",{method:"POST"});load();}
+async function stopA(id){await fetch("/api/announcements/"+id+"/stop",{method:"POST"});load();}
+load();
+</script>
+</body>
+</html>
