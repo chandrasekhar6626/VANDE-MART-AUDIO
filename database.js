@@ -1,7 +1,9 @@
 const Database = require("better-sqlite3");
+
 const db = new Database("vande_mart_audio.db");
 
 db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS branches (
@@ -28,11 +30,22 @@ CREATE TABLE IF NOT EXISTS announcement_branches (
   PRIMARY KEY (announcement_id, branch_id)
 );
 
-/* Branch bot heartbeat / online status */
 CREATE TABLE IF NOT EXISTS branch_heartbeats (
   branch_id INTEGER PRIMARY KEY,
   last_seen TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS announcement_branch_status (
+  announcement_id INTEGER NOT NULL,
+  branch_id INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (announcement_id, branch_id)
+);
+
+INSERT OR IGNORE INTO announcement_branch_status
+  (announcement_id, branch_id, active)
+SELECT announcement_id, branch_id, 0
+FROM announcement_branches;
 `);
 
 module.exports = db;
