@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS announcement_branches (
   branch_id INTEGER NOT NULL,
   PRIMARY KEY (announcement_id, branch_id)
 );
+
+/* Branch bot heartbeat / online status */
+CREATE TABLE IF NOT EXISTS branch_heartbeats (
+  branch_id INTEGER PRIMARY KEY,
+  last_seen TEXT NOT NULL
+);
 `);
 
 module.exports = db;
