@@ -34,6 +34,86 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, serverTime: new Date().toISOString() });
 });
 
+/*
+ * BRANCH HEARTBEAT
+ * Branch bot sends this every 15 seconds.
+ */
+app.post("/api/heartbeat", (req, res) => {
+  try {
+    const code = String(req.body.branchCode || "").trim().toUpperCase();
+
+    if (!code) {
+      return res.status(400).json({ error: "branchCode is required" });
+    }
+
+    const branch = db
+      .prepare("SELECT id, name, code FROM branches WHERE UPPER(code)=?")
+      .get(code);
+
+    if (!branch) {
+      return res.status(404).json({ error: "Branch not found" });
+    }
+
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO branch_heartbeats (branch_id, last_seen)
+      VALUES (?, ?)
+      ON CONFLICT(branch_id)
+      DO UPDATE SET last_seen=excluded.last_seen
+    `).run(branch.id, now);
+
+    res.json({
+      ok: true,
+      branch: branch.code,
+      last_seen: now
+    });
+  } catch (e) {
+    console.error("HEARTBEAT ERROR:", e);
+    res.status(500).json({ error: "Heartbeat failed" });
+  }
+});
+
+/*
+ * BRANCH ONLINE/OFFLINE STATUS
+ * Online = heartbeat received within the last 45 seconds.
+ */
+app.get("/api/branches/status", (req, res) => {
+  try {
+    const now = Date.now();
+
+    const rows = db.prepare(`
+      SELECT
+        b.id,
+        b.name,
+        b.code,
+        h.last_seen
+      FROM branches b
+      LEFT JOIN branch_heartbeats h
+        ON b.id = h.branch_id
+      ORDER BY b.id DESC
+    `).all();
+
+    const result = rows.map(b => {
+      const lastSeenMs = b.last_seen ? Date.parse(b.last_seen) : NaN;
+      const online =
+        Number.isFinite(lastSeenMs) &&
+        (now - lastSeenMs) <= 45000;
+
+      return {
+        ...b,
+        online,
+        status: online ? "Online" : "Offline"
+      };
+    });
+
+    res.json(result);
+  } catch (e) {
+    console.error("BRANCH STATUS ERROR:", e);
+    res.status(500).json({ error: "Could not get branch status" });
+  }
+});
+
 app.get("/api/branches", (req, res) => {
   res.json(db.prepare("SELECT * FROM branches ORDER BY id DESC").all());
 });
@@ -116,7 +196,6 @@ app.post("/api/announcements", upload.single("audio"), (req, res) => {
     `).get(title);
 
     if (existing) {
-      // Update the existing announcement and replace its branch list.
       db.transaction(() => {
         db.prepare(`
           UPDATE announcements
