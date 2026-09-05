@@ -6,83 +6,35 @@
 <title>Vande Mart Audio Admin</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#17202a}
-header{background:#111827;color:white;padding:18px}
-main{max-width:900px;margin:auto;padding:16px}
-.card{background:white;padding:18px;margin:14px 0;border-radius:12px;box-shadow:0 2px 8px #0001}
-input,button{padding:11px;margin:5px 0;border-radius:8px;border:1px solid #ccd}
-button{cursor:pointer;background:#111827;color:white}
-.branch{display:inline-block;margin:5px;padding:8px;background:#eef2ff;border-radius:8px}
-.status{font-weight:bold}
+header{background:#111827;color:#fff;padding:18px}main{max-width:900px;margin:auto;padding:16px}
+.card{background:#fff;padding:18px;margin:14px 0;border-radius:12px;box-shadow:0 2px 8px #0001}
+input,button{padding:11px;margin:5px 0;border-radius:8px;border:1px solid #ccd}button{cursor:pointer;background:#111827;color:#fff}
+.branch{display:inline-flex;align-items:center;gap:8px;margin:5px;padding:8px;background:#eef2ff;border-radius:8px}
+.branch-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.status-card{border:1px solid #e3e8ef;border-radius:10px;padding:12px}
+.status-name{font-weight:700}.presence{font-weight:700;margin-top:7px}.online{color:#087443}.offline{color:#b42318}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:currentColor}
+.last-seen,.muted{font-size:.86rem;color:#5d6878;margin-top:5px;word-break:break-word}.status{font-weight:bold}.targets{margin-top:12px;padding-top:10px;border-top:1px solid #e7ebf0}
+.target-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #f0f2f5}.target-row:last-child{border-bottom:0}.target-state{font-size:.85rem;font-weight:700}.target-actions button{padding:7px 10px;margin:0}.stop-branch{background:#9b1c1c}.activate-branch{background:#087443}
 </style>
 </head>
 <body>
 <header><h2>Vande Mart Central Audio</h2></header>
 <main>
-<div class="card">
-<h3>Add Branch</h3>
-<input id="branchName" placeholder="Branch name">
-<input id="branchCode" placeholder="Unique code e.g. KURNOOL01">
-<button onclick="addBranch()">Add Branch</button>
-<div id="branches"></div>
-</div>
-
-<div class="card">
-<h3>Upload Announcement</h3>
-<input id="title" placeholder="Announcement title"><br>
-<input id="audio" type="file" accept="audio/*"><br>
-<label>Interval (minutes)</label><br>
-<input id="interval" type="number" value="15" min="1"><br>
-<label>Start time</label><br>
-<input id="start" type="time" value="09:00"><br>
-<label>End time</label><br>
-<input id="end" type="time" value="21:00"><br>
-<p>Select branches:</p>
-<div id="branchChecks"></div>
-<button onclick="uploadAnnouncement()">Upload</button>
-</div>
-
-<div class="card">
-<h3>Announcements</h3>
-<div id="announcements"></div>
-</div>
+  <div class="card"><h3>Branch status</h3><div id="branchStatus" class="branch-status"><span class="muted">Loading status…</span></div></div>
+  <div class="card"><h3>Add Branch</h3><input id="branchName" placeholder="Branch name"><input id="branchCode" placeholder="Unique code e.g. KURNOOL01"><button onclick="addBranch()">Add Branch</button><div id="branches"></div></div>
+  <div class="card"><h3>Upload Announcement</h3><input id="title" placeholder="Announcement title"><br><input id="audio" type="file" accept="audio/*"><br><label>Interval (minutes)</label><br><input id="interval" type="number" value="15" min="1"><br><label>Start time</label><br><input id="start" type="time" value="09:00"><br><label>End time</label><br><input id="end" type="time" value="21:00"><br><p>Select branches:</p><div id="branchChecks"></div><button onclick="uploadAnnouncement()">Upload</button></div>
+  <div class="card"><h3>Announcements</h3><div id="announcements"></div></div>
 </main>
-
 <script>
 let branches=[];
-async function load(){
-  branches=await fetch("/api/branches").then(r=>r.json());
-  document.getElementById("branches").innerHTML=branches.map(b=>`<div class="branch">${b.name} (${b.code})</div>`).join("");
-  document.getElementById("branchChecks").innerHTML=branches.map(b=>`<label class="branch"><input type="checkbox" value="${b.id}"> ${b.name}</label>`).join("");
-  const a=await fetch("/api/announcements").then(r=>r.json());
-  document.getElementById("announcements").innerHTML=a.map(x=>`
-    <div class="card">
-      <b>${x.title}</b><br>Every ${x.interval_minutes} minutes, ${x.start_time}-${x.end_time}<br>
-      Status: <span class="status">${x.active?"ACTIVE":"Stopped"}</span><br>
-      ${x.active?`<button onclick="stopA(${x.id})">Stop</button>`:`<button onclick="activate(${x.id})">Activate</button>`}
-    </div>`).join("");
-}
-async function addBranch(){
-  const name=branchName.value.trim(), code=branchCode.value.trim();
-  if(!name||!code)return alert("Enter branch name and code");
-  const r=await fetch("/api/branches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,code})});
-  if(!r.ok)return alert((await r.json()).error);
-  branchName.value="";branchCode.value="";load();
-}
-async function uploadAnnouncement(){
-  const file=audio.files[0]; if(!file)return alert("Choose an audio file");
-  const ids=[...document.querySelectorAll("#branchChecks input:checked")].map(x=>Number(x.value));
-  if(!ids.length)return alert("Select at least one branch");
-  const fd=new FormData();
-  fd.append("title",title.value||file.name);fd.append("audio",file);
-  fd.append("interval_minutes",interval.value);fd.append("start_time",start.value);fd.append("end_time",end.value);
-  fd.append("branch_ids",JSON.stringify(ids));
-  const r=await fetch("/api/announcements",{method:"POST",body:fd});
-  if(!r.ok)return alert((await r.json()).error);
-  alert("Announcement uploaded");load();
-}
-async function activate(id){await fetch("/api/announcements/"+id+"/activate",{method:"POST"});load();}
-async function stopA(id){await fetch("/api/announcements/"+id+"/stop",{method:"POST"});load();}
-load();
+const escapeHtml=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+function formatLastSeen(value){if(!value)return 'No heartbeat received yet';const date=new Date(value);return Number.isNaN(date.getTime())?`Last seen: ${value}`:`Last seen: ${date.toLocaleString()}`}
+function renderBranchStatus(statuses){const byCode=new Map(statuses.map(item=>[item.code,item]));document.getElementById('branchStatus').innerHTML=branches.length?branches.map(branch=>{const item=byCode.get(branch.code),online=Boolean(item?.online),computer=item?.computer_name?`<br>Computer: ${escapeHtml(item.computer_name)}`:'';return `<div class="status-card"><div class="status-name">${escapeHtml(branch.name)} (${escapeHtml(branch.code)})</div><div class="presence ${online?'online':'offline'}"><span class="dot"></span>${online?'ONLINE':'OFFLINE'}</div><div class="last-seen">${escapeHtml(formatLastSeen(item?.last_seen))}${computer}</div></div>`}).join(''):'<span class="muted">No branches added yet.</span>'}
+function targetHtml(announcementId,targets){if(!targets.length)return '<div class="muted">No branch targets.</div>';return `<div class="targets"><b>Branch activation</b>${targets.map(target=>`<div class="target-row"><span>${escapeHtml(target.name)} (${escapeHtml(target.code)})<br><span class="target-state ${target.active?'online':'offline'}">${target.active?'ACTIVE FOR THIS BRANCH':'STOPPED FOR THIS BRANCH'}</span></span><span class="target-actions">${target.active?`<button class="stop-branch" onclick="setBranchActive(${announcementId},${target.id},false)">Stop branch</button>`:`<button class="activate-branch" onclick="setBranchActive(${announcementId},${target.id},true)">Activate branch</button>`}</span></div>`).join('')}</div>`}
+async function load(){try{const [branchResponse,statusResponse,announcementResponse]=await Promise.all([fetch('/api/branches'),fetch('/api/branch-status'),fetch('/api/announcements')]);if(!branchResponse.ok||!announcementResponse.ok)throw new Error('Could not load dashboard data');branches=await branchResponse.json();const statuses=statusResponse.ok?await statusResponse.json():[],announcements=await announcementResponse.json();const targets=await Promise.all(announcements.map(async item=>{const response=await fetch(`/api/announcements/${item.id}/branches`);return [item.id,response.ok?await response.json():[]]}));const targetsByAnnouncement=new Map(targets);document.getElementById('branches').innerHTML=branches.map(branch=>`<div class="branch">${escapeHtml(branch.name)} (${escapeHtml(branch.code)})</div>`).join('');document.getElementById('branchChecks').innerHTML=branches.map(branch=>`<label class="branch"><input type="checkbox" value="${branch.id}"> ${escapeHtml(branch.name)}</label>`).join('');renderBranchStatus(statuses);document.getElementById('announcements').innerHTML=announcements.map(item=>`<div class="card"><b>${escapeHtml(item.title)}</b><br>Every ${item.interval_minutes} minutes, ${escapeHtml(item.start_time)}-${escapeHtml(item.end_time)}<br>Status: <span class="status">${item.active?'ACTIVE':'Stopped'}</span><br>${item.active?`<button onclick="stopA(${item.id})">Stop all branches</button>`:`<button onclick="activate(${item.id})">Activate all branches</button>`}${targetHtml(item.id,targetsByAnnouncement.get(item.id)||[])}</div>`).join('')}catch(error){document.getElementById('branchStatus').innerHTML=`<span class="offline">Status unavailable — ${escapeHtml(error.message)}</span>`}}
+async function addBranch(){const name=branchName.value.trim(),code=branchCode.value.trim();if(!name||!code)return alert('Enter branch name and code');const response=await fetch('/api/branches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code})});if(!response.ok)return alert((await response.json()).error);branchName.value='';branchCode.value='';load()}
+async function uploadAnnouncement(){const file=audio.files[0];if(!file)return alert('Choose an audio file');const ids=[...document.querySelectorAll('#branchChecks input:checked')].map(item=>Number(item.value));if(!ids.length)return alert('Select at least one branch');const formData=new FormData();formData.append('title',title.value||file.name);formData.append('audio',file);formData.append('interval_minutes',interval.value);formData.append('start_time',start.value);formData.append('end_time',end.value);formData.append('branch_ids',JSON.stringify(ids));const response=await fetch('/api/announcements',{method:'POST',body:formData});if(!response.ok)return alert((await response.json()).error);alert('Announcement uploaded');load()}
+async function activate(id){await fetch('/api/announcements/'+id+'/activate',{method:'POST'});load()}async function stopA(id){await fetch('/api/announcements/'+id+'/stop',{method:'POST'});load()}async function setBranchActive(announcementId,branchId,active){const action=active?'activate':'stop';const response=await fetch(`/api/announcements/${announcementId}/branches/${branchId}/${action}`,{method:'POST'});if(!response.ok){const body=await response.json().catch(()=>({}));return alert(body.error||'Could not update branch status')}load()}
+load();setInterval(load,15000);
 </script>
 </body>
 </html>
