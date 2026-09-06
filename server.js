@@ -50,6 +50,7 @@ const defaultBranches = [
   { name: "NANDYAL", code: "TTD" },
   { name: "NANDYAL", code: "NGO" },
   { name: "MYDUKUR", code: "MYD" }
+  { name: "KADAPA", code: "KDP" }
 ];
 
 const insertDefaultBranch = db.prepare(`
