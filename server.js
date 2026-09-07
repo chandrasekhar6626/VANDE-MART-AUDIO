@@ -46,9 +46,9 @@ const defaultBranches = [
   { name: "KOILAKUNTLA", code: "KKL" },
   { name: "BANAGANAPALLE", code: "BPL" },
   { name: "BOMALASATRAM", code: "BST" },
-  { name: "NANDYAL", code: "KSS" },
-  { name: "NANDYAL", code: "TTD" },
-  { name: "NANDYAL", code: "NGO" },
+  { name: "NANDYAL(K)", code: "KSS" },
+  { name: "NANDYAL(T)", code: "TTD" },
+  { name: "NANDYAL(N)", code: "NGO" },
   { name: "MYDUKUR", code: "MYD" },
   { name: "KADAPA", code: "KDP" }
 ];
