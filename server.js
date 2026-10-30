@@ -341,11 +341,11 @@ app.post(
       ).trim();
 
       const interval = Number(
-        req.body.interval_minutes || 15
+        req.body.interval_minutes || 10
       );
 
       const start = req.body.start_time || "09:00";
-      const end = req.body.end_time || "21:00";
+      const end = req.body.end_time || "22:00";
 
       let branchIds;
 
@@ -646,15 +646,6 @@ app.post(
 
         for (const row of branchRows) {
 
-          /* Stop other announcements for this branch */
-
-          db.prepare(`
-            UPDATE announcement_branch_status
-            SET active=0
-            WHERE branch_id=?
-          `).run(row.branch_id);
-
-
           /* Activate selected announcement */
 
           db.prepare(`
@@ -817,15 +808,6 @@ app.post(
 
 
       db.transaction(() => {
-
-        /* Stop all announcements for this branch */
-
-        db.prepare(`
-          UPDATE announcement_branch_status
-          SET active=0
-          WHERE branch_id=?
-        `).run(branchId);
-
 
         /* Activate selected announcement */
 
@@ -1112,7 +1094,7 @@ app.get(
       }
 
 
-      const announcement = db.prepare(`
+      const announcements = db.prepare(`
         SELECT a.*
         FROM announcements a
         JOIN announcement_branches ab
@@ -1123,14 +1105,14 @@ app.get(
         WHERE
           ab.branch_id=?
           AND abs.active=1
-        ORDER BY a.id DESC
-        LIMIT 1
-      `).get(branch.id);
-
+        ORDER BY a.id ASC
+      `).all(branch.id);
 
       res.json({
         branch,
-        announcement: announcement || null,
+        announcements,
+        // Keep the old single-item field for compatibility with older bots.
+        announcement: announcements[0] || null,
         serverTime: new Date().toISOString()
       });
 
